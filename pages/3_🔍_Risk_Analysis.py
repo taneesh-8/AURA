@@ -5,9 +5,6 @@ import json
 from datetime import datetime
 import os
 
-# Create data folder if it doesn't exist
-os.makedirs("data", exist_ok=True)
-
 if not st.session_state.get("logged_in"):
     st.warning("Please login first")
     st.stop()
@@ -63,7 +60,7 @@ with col1:
             st.session_state.risk_analysis = risk_result
             st.session_state.company_data = company_data
             
-            # Log to audit
+            # Log to audit - CREATE FOLDER HERE, RIGHT BEFORE WRITING
             audit_entry = {
                 "timestamp": datetime.now().isoformat(),
                 "user": st.session_state.username,
@@ -73,16 +70,21 @@ with col1:
                 "risk_level": risk_result["risk_level"]
             }
             
+            # Create data folder RIGHT HERE
+            try:
+                os.makedirs("data", exist_ok=True)
+            except Exception:
+                pass  # Silently ignore if folder creation fails
+            
             # Read existing audit log
             audit_log_path = "data/audit_log.json"
+            audit_log = []
             try:
                 if os.path.exists(audit_log_path):
                     with open(audit_log_path, "r") as f:
                         audit_log = json.load(f)
-                else:
-                    audit_log = []
             except Exception:
-                audit_log = []
+                pass
             
             audit_log.append(audit_entry)
             
@@ -165,7 +167,12 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                 # Store in session state
                 st.session_state.ai_explanation = ai_explanation
                 
-                # Log AI usage
+                # Log AI usage - CREATE FOLDER HERE TOO
+                try:
+                    os.makedirs("data", exist_ok=True)
+                except Exception:
+                    pass
+                
                 audit_entry = {
                     "timestamp": datetime.now().isoformat(),
                     "user": st.session_state.username,
@@ -174,14 +181,13 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                 }
                 
                 audit_log_path = "data/audit_log.json"
+                audit_log = []
                 try:
                     if os.path.exists(audit_log_path):
                         with open(audit_log_path, "r") as f:
                             audit_log = json.load(f)
-                    else:
-                        audit_log = []
                 except Exception:
-                    audit_log = []
+                    pass
                 
                 audit_log.append(audit_entry)
                 
