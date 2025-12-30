@@ -3,6 +3,10 @@ from services.risk_engine import calculate_risk_score
 from services.llm_integration import generate_llm_explanation
 import json
 from datetime import datetime
+import os
+
+# Create data folder if it doesn't exist
+os.makedirs("data", exist_ok=True)
 
 if not st.session_state.get("logged_in"):
     st.warning("Please login first")
@@ -69,16 +73,25 @@ with col1:
                 "risk_level": risk_result["risk_level"]
             }
             
+            # Read existing audit log
+            audit_log_path = "data/audit_log.json"
             try:
-                with open("data/audit_log.json", "r") as f:
-                    audit_log = json.load(f)
-            except:
+                if os.path.exists(audit_log_path):
+                    with open(audit_log_path, "r") as f:
+                        audit_log = json.load(f)
+                else:
+                    audit_log = []
+            except Exception as e:
                 audit_log = []
             
             audit_log.append(audit_entry)
             
-            with open("data/audit_log.json", "w") as f:
-                json.dump(audit_log, f, indent=2)
+            # Write audit log
+            try:
+                with open(audit_log_path, "w") as f:
+                    json.dump(audit_log, f, indent=2)
+            except Exception as e:
+                st.warning(f"⚠️ Could not save audit log: {str(e)}")
             
             st.rerun()
 
@@ -125,7 +138,7 @@ with col2:
     else:
         st.info("👈 Enter company details and click **Analyze Risk**")
 
-# AI EXPLANATION SECTION - NEW FEATURE!
+# AI EXPLANATION SECTION
 st.divider()
 
 if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
@@ -160,16 +173,23 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                     "company": company_data["company_name"]
                 }
                 
+                audit_log_path = "data/audit_log.json"
                 try:
-                    with open("data/audit_log.json", "r") as f:
-                        audit_log = json.load(f)
+                    if os.path.exists(audit_log_path):
+                        with open(audit_log_path, "r") as f:
+                            audit_log = json.load(f)
+                    else:
+                        audit_log = []
                 except:
                     audit_log = []
                 
                 audit_log.append(audit_entry)
                 
-                with open("data/audit_log.json", "w") as f:
-                    json.dump(audit_log, f, indent=2)
+                try:
+                    with open(audit_log_path, "w") as f:
+                        json.dump(audit_log, f, indent=2)
+                except Exception as e:
+                    pass  # Silently ignore audit log errors
                 
                 st.success("✅ AI analysis complete!")
                 st.rerun()
