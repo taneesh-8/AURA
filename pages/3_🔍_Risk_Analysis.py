@@ -44,7 +44,7 @@ with col1:
     
     st.divider()
     
-    if st.button("🔍 Analyze Risk", type="primary", use_container_width=True):
+    if st.button("🔍 Analyze Risk", type="primary", width="stretch"):
         if not company_name:
             st.error("❌ Company name is required")
         else:
@@ -81,7 +81,7 @@ with col1:
                         audit_log = json.load(f)
                 else:
                     audit_log = []
-            except Exception as e:
+            except Exception:
                 audit_log = []
             
             audit_log.append(audit_entry)
@@ -90,8 +90,8 @@ with col1:
             try:
                 with open(audit_log_path, "w") as f:
                     json.dump(audit_log, f, indent=2)
-            except Exception as e:
-                st.warning(f"⚠️ Could not save audit log: {str(e)}")
+            except Exception:
+                pass  # Silently ignore audit log write errors
             
             st.rerun()
 
@@ -103,11 +103,11 @@ with col2:
         
         # Risk score display
         if risk["risk_level"] == "HIGH RISK":
-            st.error(f"{risk['color']} **{risk['risk_level']}**")
+            st.error(f"{risk['color']} *{risk['risk_level']}*")
         elif risk["risk_level"] == "MODERATE RISK":
-            st.warning(f"{risk['color']} **{risk['risk_level']}**")
+            st.warning(f"{risk['color']} *{risk['risk_level']}*")
         else:
-            st.success(f"{risk['color']} **{risk['risk_level']}**")
+            st.success(f"{risk['color']} *{risk['risk_level']}*")
         
         # Score gauge
         st.metric("Risk Score", f"{risk['risk_score']}/100")
@@ -116,27 +116,27 @@ with col2:
         
         st.divider()
         
-        st.markdown("**Key Risk Factors:**")
+        st.markdown("*Key Risk Factors:*")
         for factor in risk["risk_factors"]:
             st.markdown(f"- {factor}")
         
         st.divider()
         
-        st.info(f"**Recommendation:** {risk['recommendation']}")
+        st.info(f"*Recommendation:* {risk['recommendation']}")
         
         # Action buttons
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
-            if st.button("📄 Generate Term Sheet", use_container_width=True):
+            if st.button("📄 Generate Term Sheet", width="stretch"):
                 st.switch_page("pages/4_📄_Term_Sheet.py")
         
         with col_btn2:
-            if st.button("📈 View Ratios", use_container_width=True):
+            if st.button("📈 View Ratios", width="stretch"):
                 st.switch_page("pages/5_📈_Financial_Ratios.py")
     
     else:
-        st.info("👈 Enter company details and click **Analyze Risk**")
+        st.info("👈 Enter company details and click *Analyze Risk*")
 
 # AI EXPLANATION SECTION
 st.divider()
@@ -144,7 +144,7 @@ st.divider()
 if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
     st.subheader("🤖 AI-Powered Credit Analysis")
     
-    if st.button("✨ Generate AI Explanation", type="secondary", use_container_width=True):
+    if st.button("✨ Generate AI Explanation", type="secondary", width="stretch"):
         with st.spinner("🧠 AI is analyzing the credit profile..."):
             try:
                 # Prepare data for LLM
@@ -180,7 +180,7 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                             audit_log = json.load(f)
                     else:
                         audit_log = []
-                except:
+                except Exception:
                     audit_log = []
                 
                 audit_log.append(audit_entry)
@@ -188,7 +188,7 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                 try:
                     with open(audit_log_path, "w") as f:
                         json.dump(audit_log, f, indent=2)
-                except Exception as e:
+                except Exception:
                     pass  # Silently ignore audit log errors
                 
                 st.success("✅ AI analysis complete!")
