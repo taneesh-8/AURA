@@ -119,7 +119,7 @@ recent_data = pd.DataFrame({
     "Status": ["✅ Complete", "✅ Complete", "✅ Approved", "⏳ Pending"]
 })
 
-st.dataframe(recent_data, width=None, hide_index=True)
+st.dataframe(recent_data, hide_index=True)
 
 st.divider()
 st.caption("🤖 AURA - Professional AI Credit Decisioning Platform v2.0")
