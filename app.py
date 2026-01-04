@@ -1,5 +1,6 @@
 import streamlit as st
 from auth import show_login_page, logout
+import pandas as pd
 
 # Page config
 st.set_page_config(
@@ -19,19 +20,29 @@ if "username" not in st.session_state:
 if "role" not in st.session_state:
     st.session_state.role = None
 
+if "user_role" not in st.session_state:
+    st.session_state.user_role = None
+
 if "full_name" not in st.session_state:
     st.session_state.full_name = None
+
+if "email" not in st.session_state:
+    st.session_state.email = None
 
 # Authentication gate
 if not st.session_state.logged_in:
     show_login_page()
     st.stop()
 
+# Sync user_role with role for compatibility
+if st.session_state.role and not st.session_state.user_role:
+    st.session_state.user_role = st.session_state.role
+
 # Sidebar navigation
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.full_name}")
-    st.markdown(f"**Role:** {st.session_state.role}")
-    st.markdown(f"**Email:** {st.session_state.email}")
+    st.markdown(f"*Role:* {st.session_state.role}")
+    st.markdown(f"*Email:* {st.session_state.email}")
     
     st.divider()
     
@@ -49,7 +60,7 @@ with st.sidebar:
     
     st.divider()
     
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("🚪 Logout", width="stretch"):
         logout()
 
 # Main welcome page
@@ -80,27 +91,25 @@ st.markdown("### 🚀 Quick Actions")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("🔍 New Risk Analysis", use_container_width=True):
+    if st.button("🔍 New Risk Analysis", width="stretch"):
         st.switch_page("pages/3_🔍_Risk_Analysis.py")
 
 with col2:
-    if st.button("📄 Generate Term Sheet", use_container_width=True):
+    if st.button("📄 Generate Term Sheet", width="stretch"):
         st.switch_page("pages/4_📄_Term_Sheet.py")
 
 with col3:
-    if st.button("📈 View Ratios", use_container_width=True):
+    if st.button("📈 View Ratios", width="stretch"):
         st.switch_page("pages/5_📈_Financial_Ratios.py")
 
 with col4:
-    if st.button("📋 Audit Log", use_container_width=True):
+    if st.button("📋 Audit Log", width="stretch"):
         st.switch_page("pages/8_📋_Audit_Log.py")
 
 st.divider()
 
 # Recent activity
 st.markdown("### 📊 Recent Activity")
-
-import pandas as pd
 
 recent_data = pd.DataFrame({
     "Time": ["2 hours ago", "5 hours ago", "1 day ago", "2 days ago"],
@@ -110,8 +119,7 @@ recent_data = pd.DataFrame({
     "Status": ["✅ Complete", "✅ Complete", "✅ Approved", "⏳ Pending"]
 })
 
-st.dataframe(recent_data, use_container_width=True, hide_index=True)
+st.dataframe(recent_data, width=None, hide_index=True)
 
 st.divider()
-
 st.caption("🤖 AURA - Professional AI Credit Decisioning Platform v2.0")
