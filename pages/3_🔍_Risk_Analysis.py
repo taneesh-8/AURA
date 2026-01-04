@@ -1,13 +1,15 @@
 import streamlit as st
 from services.risk_engine import calculate_risk_score
 from services.llm_integration import generate_llm_explanation
-import json
 from datetime import datetime
-import os
 
 if not st.session_state.get("logged_in"):
     st.warning("Please login first")
     st.stop()
+
+# Initialize session state
+if "audit_log" not in st.session_state:
+    st.session_state.audit_log = []
 
 st.title("🔍 Risk Analysis")
 st.markdown("### Comprehensive Credit Risk Assessment")
@@ -41,7 +43,7 @@ with col1:
     
     st.divider()
     
-    if st.button("🔍 Analyze Risk", type="primary", width="stretch"):
+    if st.button("🔍 Analyze Risk", type="primary", use_container_width=True):
         if not company_name:
             st.error("❌ Company name is required")
         else:
@@ -60,7 +62,7 @@ with col1:
             st.session_state.risk_analysis = risk_result
             st.session_state.company_data = company_data
             
-            # Log to audit - CREATE FOLDER HERE, RIGHT BEFORE WRITING
+            # Log to audit (session state only)
             audit_entry = {
                 "timestamp": datetime.now().isoformat(),
                 "user": st.session_state.username,
@@ -70,30 +72,7 @@ with col1:
                 "risk_level": risk_result["risk_level"]
             }
             
-            # Create data folder RIGHT HERE
-            try:
-                os.makedirs("data", exist_ok=True)
-            except Exception:
-                pass  # Silently ignore if folder creation fails
-            
-            # Read existing audit log
-            audit_log_path = "data/audit_log.json"
-            audit_log = []
-            try:
-                if os.path.exists(audit_log_path):
-                    with open(audit_log_path, "r") as f:
-                        audit_log = json.load(f)
-            except Exception:
-                pass
-            
-            audit_log.append(audit_entry)
-            
-            # Write audit log
-            try:
-                with open(audit_log_path, "w") as f:
-                    json.dump(audit_log, f, indent=2)
-            except Exception:
-                pass  # Silently ignore audit log write errors
+            st.session_state.audit_log.append(audit_entry)
             
             st.rerun()
 
@@ -105,11 +84,11 @@ with col2:
         
         # Risk score display
         if risk["risk_level"] == "HIGH RISK":
-            st.error(f"{risk['color']} *{risk['risk_level']}*")
+            st.error(f"{risk['color']} **{risk['risk_level']}**")
         elif risk["risk_level"] == "MODERATE RISK":
-            st.warning(f"{risk['color']} *{risk['risk_level']}*")
+            st.warning(f"{risk['color']} **{risk['risk_level']}**")
         else:
-            st.success(f"{risk['color']} *{risk['risk_level']}*")
+            st.success(f"{risk['color']} **{risk['risk_level']}**")
         
         # Score gauge
         st.metric("Risk Score", f"{risk['risk_score']}/100")
@@ -118,35 +97,35 @@ with col2:
         
         st.divider()
         
-        st.markdown("*Key Risk Factors:*")
+        st.markdown("**Key Risk Factors:**")
         for factor in risk["risk_factors"]:
             st.markdown(f"- {factor}")
         
         st.divider()
         
-        st.info(f"*Recommendation:* {risk['recommendation']}")
+        st.info(f"**Recommendation:** {risk['recommendation']}")
         
         # Action buttons
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
-            if st.button("📄 Generate Term Sheet", width="stretch"):
+            if st.button("📄 Generate Term Sheet", use_container_width=True):
                 st.switch_page("pages/4_📄_Term_Sheet.py")
         
         with col_btn2:
-            if st.button("📈 View Ratios", width="stretch"):
+            if st.button("📈 View Ratios", use_container_width=True):
                 st.switch_page("pages/5_📈_Financial_Ratios.py")
     
     else:
-        st.info("👈 Enter company details and click *Analyze Risk*")
+        st.info("👈 Enter company details and click **Analyze Risk**")
 
-# AI EXPLANATION SECTION
+# AI EXPLANATION SECTION - NEW FEATURE!
 st.divider()
 
 if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
     st.subheader("🤖 AI-Powered Credit Analysis")
     
-    if st.button("✨ Generate AI Explanation", type="secondary", width="stretch"):
+    if st.button("✨ Generate AI Explanation", type="secondary", use_container_width=True):
         with st.spinner("🧠 AI is analyzing the credit profile..."):
             try:
                 # Prepare data for LLM
@@ -167,12 +146,7 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                 # Store in session state
                 st.session_state.ai_explanation = ai_explanation
                 
-                # Log AI usage - CREATE FOLDER HERE TOO
-                try:
-                    os.makedirs("data", exist_ok=True)
-                except Exception:
-                    pass
-                
+                # Log AI usage
                 audit_entry = {
                     "timestamp": datetime.now().isoformat(),
                     "user": st.session_state.username,
@@ -180,22 +154,7 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
                     "company": company_data["company_name"]
                 }
                 
-                audit_log_path = "data/audit_log.json"
-                audit_log = []
-                try:
-                    if os.path.exists(audit_log_path):
-                        with open(audit_log_path, "r") as f:
-                            audit_log = json.load(f)
-                except Exception:
-                    pass
-                
-                audit_log.append(audit_entry)
-                
-                try:
-                    with open(audit_log_path, "w") as f:
-                        json.dump(audit_log, f, indent=2)
-                except Exception:
-                    pass  # Silently ignore audit log errors
+                st.session_state.audit_log.append(audit_entry)
                 
                 st.success("✅ AI analysis complete!")
                 st.rerun()
