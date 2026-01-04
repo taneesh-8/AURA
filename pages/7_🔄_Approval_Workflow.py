@@ -23,10 +23,10 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
         company = st.session_state.company_data
         risk = st.session_state.risk_analysis
         
-        st.write(f"**Company:** {company['company_name']}")
-        st.write(f"**Risk Score:** {risk['risk_score']}/100")
-        st.write(f"**Risk Level:** {risk['risk_level']}")
-        st.write(f"**Loan Amount:** ${company['loan_amount']}M")
+        st.write(f"*Company:* {company['company_name']}")
+        st.write(f"*Risk Score:* {risk['risk_score']}/100")
+        st.write(f"*Risk Level:* {risk['risk_level']}")
+        st.write(f"*Loan Amount:* ${company['loan_amount']}M")
         
         notes = st.text_area("Additional Notes", placeholder="Add any comments or special considerations...")
         
@@ -72,19 +72,22 @@ if st.session_state.pending_approvals:
                 
                 with col1:
                     st.metric("Risk Score", f"{approval['risk_score']}/100")
-                    st.write(f"**Risk Level:** {approval['risk_level']}")
-                    st.write(f"**Submitted by:** {approval['submitted_by']}")
-                    st.write(f"**Date:** {approval['timestamp'][:10]}")
+                    st.write(f"*Risk Level:* {approval['risk_level']}")
+                    st.write(f"*Submitted by:* {approval['submitted_by']}")
+                    st.write(f"*Date:* {approval['timestamp'][:10]}")
                 
                 with col2:
-                    st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
+                    st.write(f"*Loan Amount:* ${approval['loan_amount']}M")
                     if approval.get('notes'):
-                        st.info(f"**Notes:** {approval['notes']}")
+                        st.info(f"*Notes:* {approval['notes']}")
                 
                 st.divider()
                 
+                # Get user role safely - check both user_role and role
+                user_role = st.session_state.get("user_role") or st.session_state.get("role") or "analyst"
+                
                 # Approval actions (only for managers/admins)
-                if st.session_state.user_role in ["manager", "admin"]:
+                if user_role in ["manager", "admin"]:
                     col_btn1, col_btn2 = st.columns(2)
                     
                     with col_btn1:
@@ -141,16 +144,16 @@ if completed:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write(f"**Company:** {approval['company_name']}")
-                st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
-                st.write(f"**Risk Score:** {approval['risk_score']}/100")
+                st.write(f"*Company:* {approval['company_name']}")
+                st.write(f"*Loan Amount:* ${approval['loan_amount']}M")
+                st.write(f"*Risk Score:* {approval['risk_score']}/100")
             
             with col2:
-                st.write(f"**Status:** {approval['status']}")
-                st.write(f"**Submitted by:** {approval['submitted_by']}")
+                st.write(f"*Status:* {approval['status']}")
+                st.write(f"*Submitted by:* {approval['submitted_by']}")
                 decision_key = "approved_by" if approval["status"] == "Approved" else "rejected_by"
                 if decision_key in approval:
-                    st.write(f"**Decided by:** {approval[decision_key]}")
+                    st.write(f"*Decided by:* {approval[decision_key]}")
 else:
     st.info("📭 No completed decisions yet")
 
