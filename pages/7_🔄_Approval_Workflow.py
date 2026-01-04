@@ -1,7 +1,5 @@
 import streamlit as st
-import json
 from datetime import datetime
-import pandas as pd
 
 if not st.session_state.get("logged_in"):
     st.warning("Please login first")
@@ -10,296 +8,180 @@ if not st.session_state.get("logged_in"):
 st.title("🔄 Approval Workflow")
 st.markdown("### Credit Decision Review & Approval Process")
 
+# Initialize session state for approvals
+if "pending_approvals" not in st.session_state:
+    st.session_state.pending_approvals = []
+
+if "audit_log" not in st.session_state:
+    st.session_state.audit_log = []
+
 st.divider()
 
-# Initialize pending approvals
-try:
-    with open("data/pending_approvals.json", "r") as f:
-        pending_approvals = json.load(f)
-except:
-    pending_approvals = [
-        {
-            "id": "AURA-2024-001",
-            "company": "ABC Manufacturing Corp",
-            "loan_amount": 5.0,
-            "risk_level": "MODERATE RISK",
-            "risk_score": 42,
-            "submitted_by": "analyst",
-            "submitted_date": "2024-12-28T10:30:00",
-            "status": "Pending Review"
-        },
-        {
-            "id": "AURA-2024-002",
-            "company": "XYZ Tech Solutions",
-            "loan_amount": 10.0,
-            "risk_level": "LOW RISK",
-            "risk_score": 28,
-            "submitted_by": "analyst",
-            "submitted_date": "2024-12-28T14:15:00",
-            "status": "Pending Review"
-        },
-        {
-            "id": "AURA-2024-003",
-            "company": "Retail Innovations Ltd",
-            "loan_amount": 15.0,
-            "risk_level": "HIGH RISK",
-            "risk_score": 68,
-            "submitted_by": "analyst",
-            "submitted_date": "2024-12-27T16:45:00",
-            "status": "Pending Review"
-        }
-    ]
-    
-    with open("data/pending_approvals.json", "w") as f:
-        json.dump(pending_approvals, f, indent=2)
-
-# Role-based view
-if st.session_state.role == "Analyst":
-    st.info("ℹ️ Analysts can submit loan applications for review")
-    
-    st.subheader("📤 Submit New Application")
-    
-    # Check if analysis exists
-    if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
-        company_data = st.session_state.company_data
-        risk_analysis = st.session_state.risk_analysis
+# Check if there's a risk analysis to submit for approval
+if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
+    with st.expander("📤 Submit Current Analysis for Approval", expanded=False):
+        company = st.session_state.company_data
+        risk = st.session_state.risk_analysis
         
-        col1, col2 = st.columns(2)
+        st.write(f"**Company:** {company['company_name']}")
+        st.write(f"**Risk Score:** {risk['risk_score']}/100")
+        st.write(f"**Risk Level:** {risk['risk_level']}")
+        st.write(f"**Loan Amount:** ${company['loan_amount']}M")
         
-        with col1:
-            st.markdown(f"**Company:** {company_data.get('company_name')}")
-            st.markdown(f"**Loan Amount:** ${company_data.get('loan_amount')}M")
-            st.markdown(f"**Risk Level:** {risk_analysis['risk_level']}")
+        notes = st.text_area("Additional Notes", placeholder="Add any comments or special considerations...")
         
-        with col2:
-            st.markdown(f"**Industry:** {company_data.get('industry')}")
-            st.markdown(f"**Purpose:** {company_data.get('purpose')}")
-            st.markdown(f"**Risk Score:** {risk_analysis['risk_score']}/100")
-        
-        st.divider()
-        
-        submission_notes = st.text_area(
-            "Submission Notes",
-            placeholder="Add notes for the reviewer..."
-        )
-        
-        if st.button("📤 Submit for Approval", type="primary", use_container_width=True):
-            # Create new approval entry
-            new_approval = {
-                "id": f"AURA-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "company": company_data.get('company_name'),
-                "loan_amount": company_data.get('loan_amount'),
-                "risk_level": risk_analysis['risk_level'],
-                "risk_score": risk_analysis['risk_score'],
+        if st.button("📨 Submit for Approval", type="primary"):
+            approval_request = {
+                "id": len(st.session_state.pending_approvals) + 1,
+                "timestamp": datetime.now().isoformat(),
                 "submitted_by": st.session_state.username,
-                "submitted_date": datetime.now().isoformat(),
-                "status": "Pending Review",
-                "notes": submission_notes
+                "company_name": company['company_name'],
+                "loan_amount": company['loan_amount'],
+                "risk_score": risk['risk_score'],
+                "risk_level": risk['risk_level'],
+                "status": "Pending",
+                "notes": notes,
+                "company_data": company,
+                "risk_analysis": risk
             }
             
-            pending_approvals.insert(0, new_approval)
+            st.session_state.pending_approvals.append(approval_request)
             
-            with open("data/pending_approvals.json", "w") as f:
-                json.dump(pending_approvals, f, indent=2)
-            
-            # Log to audit
+            # Log action
             audit_entry = {
                 "timestamp": datetime.now().isoformat(),
                 "user": st.session_state.username,
                 "action": "Submitted for Approval",
-                "company": company_data.get('company_name'),
-                "approval_id": new_approval['id']
+                "company": company['company_name']
             }
+            st.session_state.audit_log.append(audit_entry)
             
-            try:
-                with open("data/audit_log.json", "r") as f:
-                    audit_log = json.load(f)
-            except:
-                audit_log = []
-            
-            audit_log.append(audit_entry)
-            
-            with open("data/audit_log.json", "w") as f:
-                json.dump(audit_log, f, indent=2)
-            
-            st.success(f"✅ Application {new_approval['id']} submitted for approval!")
-            st.balloons()
+            st.success("✅ Submitted for approval!")
             st.rerun()
-    else:
-        st.warning("⚠️ Complete risk analysis first before submitting for approval")
-        if st.button("🔍 Go to Risk Analysis"):
-            st.switch_page("pages/3_🔍_Risk_Analysis.py")
 
-elif st.session_state.role in ["Admin", "Manager"]:
-    st.success("✅ You have approval authority")
-    
-    # Pending approvals section
-    st.subheader("📋 Pending Approvals")
-    
-    pending = [a for a in pending_approvals if a["status"] == "Pending Review"]
-    
-    if pending:
-        for approval in pending:
-            risk_color = "🔴" if approval["risk_level"] == "HIGH RISK" else "🟡" if approval["risk_level"] == "MODERATE RISK" else "🟢"
-            
-            with st.expander(f"{risk_color} {approval['company']} - ${approval['loan_amount']}M ({approval['id']})", expanded=True):
-                col1, col2, col3 = st.columns(3)
+st.divider()
+
+# Display pending approvals
+st.subheader("📋 Pending Approvals")
+
+if st.session_state.pending_approvals:
+    for approval in st.session_state.pending_approvals:
+        if approval["status"] == "Pending":
+            with st.expander(f"🔍 {approval['company_name']} - ${approval['loan_amount']}M", expanded=False):
+                col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown(f"**Company:** {approval['company']}")
-                    st.markdown(f"**Loan Amount:** ${approval['loan_amount']}M")
-                    st.markdown(f"**Submitted By:** {approval['submitted_by']}")
+                    st.metric("Risk Score", f"{approval['risk_score']}/100")
+                    st.write(f"**Risk Level:** {approval['risk_level']}")
+                    st.write(f"**Submitted by:** {approval['submitted_by']}")
+                    st.write(f"**Date:** {approval['timestamp'][:10]}")
                 
                 with col2:
-                    st.markdown(f"**Risk Level:** {approval['risk_level']}")
-                    st.markdown(f"**Risk Score:** {approval['risk_score']}/100")
-                    st.markdown(f"**Date:** {approval['submitted_date'][:10]}")
-                
-                with col3:
-                    st.markdown(f"**Status:** {approval['status']}")
+                    st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
                     if approval.get('notes'):
-                        st.markdown(f"**Notes:** {approval['notes']}")
+                        st.info(f"**Notes:** {approval['notes']}")
                 
                 st.divider()
                 
-                # Reviewer comments
-                reviewer_comments = st.text_area(
-                    "Reviewer Comments",
-                    key=f"comments_{approval['id']}",
-                    placeholder="Add your review comments..."
-                )
-                
-                col_btn1, col_btn2, col_btn3 = st.columns(3)
-                
-                with col_btn1:
-                    if st.button("✅ Approve", key=f"approve_{approval['id']}", use_container_width=True):
-                        approval["status"] = "Approved"
-                        approval["reviewed_by"] = st.session_state.username
-                        approval["reviewed_date"] = datetime.now().isoformat()
-                        approval["reviewer_comments"] = reviewer_comments
-                        
-                        with open("data/pending_approvals.json", "w") as f:
-                            json.dump(pending_approvals, f, indent=2)
-                        
-                        # Log to audit
-                        audit_entry = {
-                            "timestamp": datetime.now().isoformat(),
-                            "user": st.session_state.username,
-                            "action": "Approved",
-                            "company": approval['company'],
-                            "approval_id": approval['id']
-                        }
-                        
-                        try:
-                            with open("data/audit_log.json", "r") as f:
-                                audit_log = json.load(f)
-                        except:
-                            audit_log = []
-                        
-                        audit_log.append(audit_entry)
-                        
-                        with open("data/audit_log.json", "w") as f:
-                            json.dump(audit_log, f, indent=2)
-                        
-                        st.success(f"✅ Approved: {approval['company']}")
-                        st.rerun()
-                
-                with col_btn2:
-                    if st.button("❌ Reject", key=f"reject_{approval['id']}", use_container_width=True):
-                        approval["status"] = "Rejected"
-                        approval["reviewed_by"] = st.session_state.username
-                        approval["reviewed_date"] = datetime.now().isoformat()
-                        approval["reviewer_comments"] = reviewer_comments
-                        
-                        with open("data/pending_approvals.json", "w") as f:
-                            json.dump(pending_approvals, f, indent=2)
-                        
-                        # Log to audit
-                        audit_entry = {
-                            "timestamp": datetime.now().isoformat(),
-                            "user": st.session_state.username,
-                            "action": "Rejected",
-                            "company": approval['company'],
-                            "approval_id": approval['id']
-                        }
-                        
-                        try:
-                            with open("data/audit_log.json", "r") as f:
-                                audit_log = json.load(f)
-                        except:
-                            audit_log = []
-                        
-                        audit_log.append(audit_entry)
-                        
-                        with open("data/audit_log.json", "w") as f:
-                            json.dump(audit_log, f, indent=2)
-                        
-                        st.error(f"❌ Rejected: {approval['company']}")
-                        st.rerun()
-                
-                with col_btn3:
-                    if st.button("🔄 Request Info", key=f"request_{approval['id']}", use_container_width=True):
-                        approval["status"] = "Information Requested"
-                        approval["reviewed_by"] = st.session_state.username
-                        approval["reviewed_date"] = datetime.now().isoformat()
-                        approval["reviewer_comments"] = reviewer_comments
-                        
-                        with open("data/pending_approvals.json", "w") as f:
-                            json.dump(pending_approvals, f, indent=2)
-                        
-                        st.info(f"ℹ️ Information requested: {approval['company']}")
-                        st.rerun()
-    else:
-        st.info("📭 No pending approvals")
-    
-    st.divider()
-    
-    # Approved/Rejected history
-    st.subheader("📊 Approval History")
-    
-    completed = [a for a in pending_approvals if a["status"] in ["Approved", "Rejected", "Information Requested"]]
-    
-    if completed:
-        history_data = []
-        for approval in completed:
-            history_data.append({
-                "ID": approval["id"],
-                "Company": approval["company"],
-                "Amount ($M)": approval["loan_amount"],
-                "Risk Level": approval["risk_level"],
-                "Status": approval["status"],
-                "Reviewed By": approval.get("reviewed_by", "N/A"),
-                "Date": approval.get("reviewed_date", "N/A")[:10]
-            })
-        
-        df = pd.DataFrame(history_data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No completed approvals yet")
+                # Approval actions (only for managers/admins)
+                if st.session_state.user_role in ["manager", "admin"]:
+                    col_btn1, col_btn2 = st.columns(2)
+                    
+                    with col_btn1:
+                        if st.button(f"✅ Approve", key=f"approve_{approval['id']}"):
+                            approval["status"] = "Approved"
+                            approval["approved_by"] = st.session_state.username
+                            approval["approval_date"] = datetime.now().isoformat()
+                            
+                            # Log action
+                            audit_entry = {
+                                "timestamp": datetime.now().isoformat(),
+                                "user": st.session_state.username,
+                                "action": "Approved",
+                                "company": approval['company_name']
+                            }
+                            st.session_state.audit_log.append(audit_entry)
+                            
+                            st.success(f"✅ Approved {approval['company_name']}")
+                            st.rerun()
+                    
+                    with col_btn2:
+                        if st.button(f"❌ Reject", key=f"reject_{approval['id']}"):
+                            approval["status"] = "Rejected"
+                            approval["rejected_by"] = st.session_state.username
+                            approval["rejection_date"] = datetime.now().isoformat()
+                            
+                            # Log action
+                            audit_entry = {
+                                "timestamp": datetime.now().isoformat(),
+                                "user": st.session_state.username,
+                                "action": "Rejected",
+                                "company": approval['company_name']
+                            }
+                            st.session_state.audit_log.append(audit_entry)
+                            
+                            st.error(f"❌ Rejected {approval['company_name']}")
+                            st.rerun()
+                else:
+                    st.info("🔒 Only managers and admins can approve/reject applications")
+else:
+    st.info("📭 No pending approvals")
+
+st.divider()
+
+# Display recent decisions
+st.subheader("📊 Recent Decisions")
+
+completed = [a for a in st.session_state.pending_approvals if a["status"] in ["Approved", "Rejected"]]
+
+if completed:
+    for approval in completed[-5:]:  # Show last 5
+        status_icon = "✅" if approval["status"] == "Approved" else "❌"
+        with st.expander(f"{status_icon} {approval['company_name']} - {approval['status']}", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Company:** {approval['company_name']}")
+                st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
+                st.write(f"**Risk Score:** {approval['risk_score']}/100")
+            
+            with col2:
+                st.write(f"**Status:** {approval['status']}")
+                st.write(f"**Submitted by:** {approval['submitted_by']}")
+                decision_key = "approved_by" if approval["status"] == "Approved" else "rejected_by"
+                if decision_key in approval:
+                    st.write(f"**Decided by:** {approval[decision_key]}")
+else:
+    st.info("📭 No completed decisions yet")
 
 st.divider()
 
 # Statistics
-st.subheader("📈 Workflow Statistics")
+st.subheader("📈 Approval Statistics")
 
-col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-
-total_approvals = len(pending_approvals)
-pending_count = len([a for a in pending_approvals if a["status"] == "Pending Review"])
-approved_count = len([a for a in pending_approvals if a["status"] == "Approved"])
-rejected_count = len([a for a in pending_approvals if a["status"] == "Rejected"])
-
-with col_stat1:
-    st.metric("Total Applications", total_approvals)
-
-with col_stat2:
-    st.metric("Pending Review", pending_count)
-
-with col_stat3:
-    st.metric("Approved", approved_count, delta=f"{(approved_count/total_approvals*100) if total_approvals > 0 else 0:.0f}%")
-
-with col_stat4:
-    st.metric("Rejected", rejected_count)
+if st.session_state.pending_approvals:
+    total = len(st.session_state.pending_approvals)
+    pending = len([a for a in st.session_state.pending_approvals if a["status"] == "Pending"])
+    approved = len([a for a in st.session_state.pending_approvals if a["status"] == "Approved"])
+    rejected = len([a for a in st.session_state.pending_approvals if a["status"] == "Rejected"])
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total", total)
+    with col2:
+        st.metric("Pending", pending)
+    with col3:
+        st.metric("Approved", approved)
+    with col4:
+        st.metric("Rejected", rejected)
+    
+    if total > 0:
+        approval_rate = (approved / total) * 100
+        st.progress(approval_rate / 100)
+        st.caption(f"Approval Rate: {approval_rate:.1f}%")
+else:
+    st.info("📊 No data available yet")
 
 st.divider()
-st.caption("🔄 Approval Workflow Management - AURA")
+st.caption("🤖 Powered by AURA Approval Engine")
