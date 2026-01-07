@@ -23,10 +23,10 @@ if st.session_state.get("risk_analysis") and st.session_state.get("company_data"
         company = st.session_state.company_data
         risk = st.session_state.risk_analysis
         
-        st.write(f"*Company:* {company['company_name']}")
-        st.write(f"*Risk Score:* {risk['risk_score']}/100")
-        st.write(f"*Risk Level:* {risk['risk_level']}")
-        st.write(f"*Loan Amount:* ${company['loan_amount']}M")
+        st.write(f"**Company:** {company['company_name']}")
+        st.write(f"**Risk Score:** {risk['risk_score']}/100")
+        st.write(f"**Risk Level:** {risk['risk_level']}")
+        st.write(f"**Loan Amount:** ${company['loan_amount']}M")
         
         notes = st.text_area("Additional Notes", placeholder="Add any comments or special considerations...")
         
@@ -72,26 +72,30 @@ if st.session_state.pending_approvals:
                 
                 with col1:
                     st.metric("Risk Score", f"{approval['risk_score']}/100")
-                    st.write(f"*Risk Level:* {approval['risk_level']}")
-                    st.write(f"*Submitted by:* {approval['submitted_by']}")
-                    st.write(f"*Date:* {approval['timestamp'][:10]}")
+                    st.write(f"**Risk Level:** {approval['risk_level']}")
+                    st.write(f"**Submitted by:** {approval['submitted_by']}")
+                    st.write(f"**Date:** {approval['timestamp'][:10]}")
                 
                 with col2:
-                    st.write(f"*Loan Amount:* ${approval['loan_amount']}M")
+                    st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
                     if approval.get('notes'):
-                        st.info(f"*Notes:* {approval['notes']}")
+                        st.info(f"**Notes:** {approval['notes']}")
                 
                 st.divider()
                 
-                # Get user role safely - check both user_role and role
+                # Get user role safely - check both user_role and role (case-insensitive)
                 user_role = st.session_state.get("user_role") or st.session_state.get("role") or "analyst"
+                user_role_lower = str(user_role).lower()
+                
+                # Debug info (remove after testing)
+                st.caption(f"🔍 Debug: Current role = '{user_role}' (lowercase: '{user_role_lower}')")
                 
                 # Approval actions (only for managers/admins)
-                if user_role in ["manager", "admin"]:
+                if user_role_lower in ["manager", "admin"]:
                     col_btn1, col_btn2 = st.columns(2)
                     
                     with col_btn1:
-                        if st.button(f"✅ Approve", key=f"approve_{approval['id']}"):
+                        if st.button(f"✅ Approve", key=f"approve_{approval['id']}", use_container_width=True, type="primary"):
                             approval["status"] = "Approved"
                             approval["approved_by"] = st.session_state.username
                             approval["approval_date"] = datetime.now().isoformat()
@@ -109,7 +113,7 @@ if st.session_state.pending_approvals:
                             st.rerun()
                     
                     with col_btn2:
-                        if st.button(f"❌ Reject", key=f"reject_{approval['id']}"):
+                        if st.button(f"❌ Reject", key=f"reject_{approval['id']}", use_container_width=True):
                             approval["status"] = "Rejected"
                             approval["rejected_by"] = st.session_state.username
                             approval["rejection_date"] = datetime.now().isoformat()
@@ -126,7 +130,7 @@ if st.session_state.pending_approvals:
                             st.error(f"❌ Rejected {approval['company_name']}")
                             st.rerun()
                 else:
-                    st.info("🔒 Only managers and admins can approve/reject applications")
+                    st.info(f"🔒 Only managers and admins can approve/reject applications (Your role: {user_role})")
 else:
     st.info("📭 No pending approvals")
 
@@ -144,16 +148,16 @@ if completed:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write(f"*Company:* {approval['company_name']}")
-                st.write(f"*Loan Amount:* ${approval['loan_amount']}M")
-                st.write(f"*Risk Score:* {approval['risk_score']}/100")
+                st.write(f"**Company:** {approval['company_name']}")
+                st.write(f"**Loan Amount:** ${approval['loan_amount']}M")
+                st.write(f"**Risk Score:** {approval['risk_score']}/100")
             
             with col2:
-                st.write(f"*Status:* {approval['status']}")
-                st.write(f"*Submitted by:* {approval['submitted_by']}")
+                st.write(f"**Status:** {approval['status']}")
+                st.write(f"**Submitted by:** {approval['submitted_by']}")
                 decision_key = "approved_by" if approval["status"] == "Approved" else "rejected_by"
                 if decision_key in approval:
-                    st.write(f"*Decided by:* {approval[decision_key]}")
+                    st.write(f"**Decided by:** {approval[decision_key]}")
 else:
     st.info("📭 No completed decisions yet")
 
