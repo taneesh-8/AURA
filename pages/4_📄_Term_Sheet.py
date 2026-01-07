@@ -19,10 +19,13 @@ if not st.session_state.get("risk_analysis"):
         st.switch_page("pages/3_🔍_Risk_Analysis.py")
     st.stop()
 
-# Check role permissions
-if st.session_state.role not in ["Admin", "Manager"]:
+# ✅ FIXED: Check role permissions with proper normalization
+user_role = st.session_state.get("user_role") or st.session_state.get("role") or "analyst"
+user_role_normalized = str(user_role).strip().lower()
+
+if user_role_normalized not in ["admin", "manager"]:
     st.error("🔒 Term sheet generation is restricted to Admin and Manager roles")
-    st.info(f"Your current role: **{st.session_state.role}**")
+    st.info(f"Your current role: **{user_role}**")
     st.stop()
 
 st.divider()
@@ -216,7 +219,7 @@ Recommendation: {risk_analysis['recommendation']}
         st.divider()
         
         # Workflow actions
-        if st.session_state.role == "Admin":
+        if user_role_normalized == "admin":  # ✅ FIXED: Use normalized role
             st.markdown("**🔄 Workflow Actions:**")
             
             col_act1, col_act2 = st.columns(2)
