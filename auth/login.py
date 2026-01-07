@@ -34,6 +34,7 @@ def show_login_page():
                     st.session_state.logged_in = True
                     st.session_state.username = username
                     st.session_state.role = user_data["role"]
+                    st.session_state.user_role = user_data["role"]  # ✅ ADDED THIS LINE
                     st.session_state.full_name = user_data["full_name"]
                     st.session_state.email = user_data["email"]
                     st.success(f"✅ Welcome back, {user_data['full_name']}!")
@@ -64,6 +65,7 @@ def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
+    st.session_state.user_role = None  # ✅ ADDED THIS LINE
     st.session_state.full_name = None
     st.session_state.email = None
     st.rerun()
