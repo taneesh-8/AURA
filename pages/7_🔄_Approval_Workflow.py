@@ -2,148 +2,137 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 
-# 1. SECURITY CHECK
+# ==========================================
+# 1. PAGE CONFIG & SECURITY
+# ==========================================
+st.set_page_config(page_title="Manager Approval Portal", layout="wide")
+
 if not st.session_state.get("logged_in"):
     st.warning("Please login first")
     st.stop()
 
-# 2. STRICT ROLE IDENTIFICATION
-# We strip whitespace and force lowercase to prevent "Manager " or "MANAGER" from failing
+# Strict Role-Based Access Control (RBAC)
 raw_role = st.session_state.get("user_role") or st.session_state.get("role") or "analyst"
 user_role = str(raw_role).strip().lower()
 
-st.title("🔄 Approval Workflow")
-st.markdown(f"### Credit Decision Review & Approval Process")
-st.caption(f"Logged in as: **{st.session_state.get('username')}** | Role: **{user_role.upper()}**")
+# If the user is an Analyst, block access to the Approval actions
+if user_role not in ["manager", "admin"]:
+    st.error("🚫 **Access Denied**: Your account level (Analyst) does not have approval authority.")
+    st.info("Please contact your system administrator to request Managerial permissions.")
+    if st.button("Return to Dashboard"):
+        st.switch_page("pages/2_📊_Dashboard.py")
+    st.stop()
 
-# Initialize session state for approvals
+# ==========================================
+# 2. INITIALIZE DATA
+# ==========================================
 if "pending_approvals" not in st.session_state:
     st.session_state.pending_approvals = []
 
 if "audit_log" not in st.session_state:
     st.session_state.audit_log = []
 
-st.divider()
+# ==========================================
+# 3. HEADER & EXECUTIVE METRICS
+# ==========================================
+st.title("💼 Manager Approval Portal")
+st.markdown("### Credit Committee Decision Engine")
 
-# 3. SUBMISSION SECTION (Available to Analysts)
-if st.session_state.get("risk_analysis") and st.session_state.get("company_data"):
-    with st.expander("📤 Submit Current Analysis for Approval", expanded=False):
-        company = st.session_state.company_data
-        risk = st.session_state.risk_analysis
-        
-        st.write(f"**Company:** {company['company_name']}")
-        st.write(f"**Risk Score:** {risk['risk_score']}/100")
-        st.write(f"**Loan Amount:** ${company['loan_amount']}M")
-        
-        notes = st.text_area("Additional Notes", placeholder="Add any comments for the manager...")
-        
-        if st.button("📨 Submit for Approval", type="primary"):
-            approval_request = {
-                "id": len(st.session_state.pending_approvals) + 1,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "submitted_by": st.session_state.username,
-                "company_name": company['company_name'],
-                "loan_amount": company['loan_amount'],
-                "risk_score": risk['risk_score'],
-                "risk_level": risk['risk_level'],
-                "status": "Pending",
-                "notes": notes
-            }
-            
-            st.session_state.pending_approvals.append(approval_request)
-            
-            # Log action
-            st.session_state.audit_log.append({
-                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "User": st.session_state.username,
-                "Role": user_role,
-                "Action": "SUBMITTED",
-                "Company": company['company_name']
-            })
-            
-            st.success("✅ Submitted for approval!")
-            st.rerun()
+# Calculate metrics for the manager
+pending_list = [a for a in st.session_state.pending_approvals if a["status"] == "Pending"]
+total_pending = len(pending_list)
+total_decisions = len([a for a in st.session_state.audit_log if a['Action'] in ['APPROVED', 'REJECTED']])
+
+m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+with m_col1:
+    st.metric("Pending Reviews", total_pending)
+with m_col2:
+    st.metric("Total Decisions", total_decisions)
+with m_col3:
+    st.metric("Avg. Risk Score", f"{int(sum(a['risk_score'] for a in pending_list)/total_pending if total_pending > 0 else 0)}/100")
+with m_col4:
+    st.metric("System Status", "Secure ✅")
 
 st.divider()
 
-# 4. PENDING APPROVALS (Manager/Admin Only see Buttons)
-st.subheader("📋 Pending Approvals")
+# ==========================================
+# 4. DECISION QUEUE (The "Work" Section)
+# ==========================================
+st.subheader("📥 Applications Awaiting Decision")
 
-if st.session_state.pending_approvals:
-    pending_items = [a for a in st.session_state.pending_approvals if a["status"] == "Pending"]
+if total_pending > 0:
+    # Sort by risk score descending so Manager sees high risk first
+    sorted_pending = sorted(pending_list, key=lambda x: x['risk_score'], reverse=True)
     
-    if not pending_items:
-        st.info("📭 No pending approvals at this time.")
-    
-    for approval in pending_items:
-        with st.expander(f"🔍 {approval['company_name']} - ${approval['loan_amount']}M", expanded=True):
-            col1, col2 = st.columns(2)
+    for approval in sorted_pending:
+        # Risk indicators
+        risk_color = "🔴" if approval['risk_score'] >= 70 else "🟡" if approval['risk_score'] >= 40 else "🟢"
+        
+        with st.expander(f"{risk_color} {approval['company_name']} | ${approval['loan_amount']}M | Risk Score: {approval['risk_score']}", expanded=True):
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
             with col1:
-                st.metric("Risk Score", f"{approval['risk_score']}/100")
-                st.write(f"**Level:** {approval['risk_level']}")
-                st.write(f"**Submitted by:** {approval['submitted_by']}")
+                st.write("**Submission Info**")
+                st.write(f"**Analyst:** {approval['submitted_by']}")
+                st.write(f"**Date:** {approval['timestamp'][:10]}")
+                st.write(f"**Application ID:** `#AURA-{approval['id']}`")
+            
             with col2:
-                st.write(f"**Date:** {approval['timestamp']}")
+                st.write("**Risk Profile**")
+                st.write(f"**Level:** {approval['risk_level']}")
+                st.progress(approval['risk_score'] / 100)
                 if approval.get('notes'):
-                    st.info(f"**Notes:** {approval['notes']}")
+                    st.info(f"**Analyst Notes:** {approval['notes']}")
             
-            st.divider()
-            
-            # --- THE ACCESS CONTROL GATE ---
-            if user_role in ["manager", "admin"]:
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    if st.button(f"✅ Approve ##{approval['id']}", key=f"app_{approval['id']}", use_container_width=True, type="primary"):
-                        approval["status"] = "Approved"
-                        st.session_state.audit_log.append({
-                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "User": st.session_state.username,
-                            "Role": user_role,
-                            "Action": "APPROVED",
-                            "Company": approval['company_name']
-                        })
-                        st.success(f"Approved {approval['company_name']}")
-                        st.rerun()
+            with col3:
+                st.write("**Decision Actions**")
+                # Approval Button
+                if st.button(f"✅ Approve ##{approval['id']}", key=f"app_{approval['id']}", use_container_width=True, type="primary"):
+                    approval["status"] = "Approved"
+                    approval["approved_by"] = st.session_state.username
+                    
+                    # Log to Audit
+                    st.session_state.audit_log.append({
+                        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "User": st.session_state.username,
+                        "Action": "APPROVED",
+                        "Company": approval['company_name'],
+                        "Details": f"Approved {approval['loan_amount']}M loan"
+                    })
+                    st.success(f"Successfully Approved {approval['company_name']}")
+                    st.rerun()
                 
-                with col_btn2:
-                    if st.button(f"❌ Reject ##{approval['id']}", key=f"rej_{approval['id']}", use_container_width=True):
-                        approval["status"] = "Rejected"
-                        st.session_state.audit_log.append({
-                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "User": st.session_state.username,
-                            "Role": user_role,
-                            "Action": "REJECTED",
-                            "Company": approval['company_name']
-                        })
-                        st.error(f"Rejected {approval['company_name']}")
-                        st.rerun()
-            else:
-                st.warning("🔒 **Read-Only:** Only Managers or Admins can Approve/Reject.")
+                # Rejection Button
+                if st.button(f"❌ Reject ##{approval['id']}", key=f"rej_{approval['id']}", use_container_width=True):
+                    approval["status"] = "Rejected"
+                    approval["rejected_by"] = st.session_state.username
+                    
+                    # Log to Audit
+                    st.session_state.audit_log.append({
+                        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "User": st.session_state.username,
+                        "Action": "REJECTED",
+                        "Company": approval['company_name'],
+                        "Details": "Did not meet credit policy"
+                    })
+                    st.error(f"Rejected {approval['company_name']}")
+                    st.rerun()
 else:
-    st.info("📭 No data available.")
+    st.info("📭 The queue is empty. No applications require action at this time.")
 
-st.divider()
-
-# 5. RECENT DECISIONS & STATS
-st.subheader("📊 Recent Decisions")
-completed = [a for a in st.session_state.pending_approvals if a["status"] in ["Approved", "Rejected"]]
-
-if completed:
-    df_recent = pd.DataFrame(completed)[["company_name", "loan_amount", "status", "risk_score"]]
-    st.table(df_recent.tail(5))
-else:
-    st.info("No completed decisions yet.")
-
-# 6. SYSTEM AUDIT LOG (Required for Demo)
+# ==========================================
+# 5. AUDIT LOG & COMPLIANCE
+# ==========================================
 st.divider()
 st.subheader("📜 Compliance Audit Trail")
+st.caption("Immutable record of all credit decisions and system actions.")
+
 if st.session_state.audit_log:
-    # Convert list of dicts to a DataFrame for professional display
     audit_df = pd.DataFrame(st.session_state.audit_log)
-    st.dataframe(audit_df, use_container_width=True)
-    st.caption("This log provides a permanent record for regulatory compliance.")
+    # Display the most recent actions at the top
+    st.dataframe(audit_df.iloc[::-1], use_container_width=True, hide_index=True)
 else:
-    st.info("Audit log is currently empty.")
+    st.info("No audit logs recorded for this session.")
 
 st.divider()
-st.caption("🤖 Powered by AURA Approval Engine | End-to-End Governance")
+st.caption("🤖 Powered by AURA Approval Engine | Enterprise Governance Mode")
